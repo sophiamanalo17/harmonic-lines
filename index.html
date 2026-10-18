@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harmonic Lines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e7e5e4; --panel:#f5f5f4; --line:#d6d3d1; --text:#1c1917; --muted:#79716b;
+  --accent:#1c1917; --accent-text:#f5f5f4; --track:#d6d3d1; --stage:#d6d3d1;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1c1917; --panel:#1f1c1a; --line:#44403b; --text:#e7e5e4; --muted:#a6a09b;
+    --accent:#e7e5e4; --accent-text:#1c1917; --track:#44403b; --stage:#110f0e;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1c1917; --panel:#1f1c1a; --line:#44403b; --text:#e7e5e4; --muted:#a6a09b;
+  --accent:#e7e5e4; --accent-text:#1c1917; --track:#44403b; --stage:#110f0e;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:12px/1.4 "IBM Plex Mono",ui-monospace,monospace;display:flex;overflow:hidden}
+#stage{flex:1;display:flex;align-items:center;justify-content:center;background:var(--stage);padding:32px;min-width:0;position:relative}
+#c{max-width:100%;max-height:100%;box-shadow:0 12px 40px rgba(0,0,0,.14)}
+#rec-badge{position:absolute;top:16px;left:16px;padding:4px 8px;background:#f54900;color:#fff;border-radius:3px;display:none}
+aside{width:320px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:16px 16px 40px}
+h1{font-size:13px;font-weight:500;margin:0 0 2px;letter-spacing:.02em}
+.sub{color:var(--muted);margin:0 0 16px}
+.group{border-top:1px solid var(--line);padding:12px 0 6px}
+.gt{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:10px;margin-bottom:8px}
+.row{display:grid;grid-template-columns:96px 1fr 36px;align-items:center;gap:8px;margin:6px 0}
+.row label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row output{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--text);margin-top:-4px}
+input[type=range]::-moz-range-track{height:2px;background:var(--track)}
+input[type=range]::-moz-range-thumb{width:10px;height:10px;border:0;border-radius:50%;background:var(--text)}
+.seg{display:flex;gap:4px;flex-wrap:wrap;margin:4px 0 6px}
+button,select{font:inherit;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:3px;padding:5px 8px;cursor:pointer}
+button:hover,select:hover{border-color:var(--muted)}
+button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.chips{display:inline-flex;margin-right:6px;vertical-align:-1px}
+.chips i{display:block;width:7px;height:10px}
+.swatches{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin:6px 0}
+.sw{aspect-ratio:1;border-radius:2px;cursor:pointer;position:relative;border:0;padding:0;outline:1px solid rgba(0,0,0,.06);outline-offset:-1px}
+.sw.bg{box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--text)}
+.sw .n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.hint{color:var(--muted);margin:2px 0 4px}
+@media (max-width:760px){
+  body{flex-direction:column;overflow:auto}
+  #stage{padding:16px;min-height:55vh}
+  aside{width:100%;border-left:0;border-top:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas><div id="rec-badge">● REC</div></div>
+<aside>
+  <h1>Harmonic Lines</h1>
+  <p class="sub">curve studies · pixel weathering</p>
+  <div class="group"><div class="gt">Preset</div><div class="seg" id="presets"></div></div>
+  <div id="controls"></div>
+  <div class="group">
+    <div class="gt">Output</div>
+    <div class="row"><label>Aspect</label>
+      <select id="aspect" style="grid-column:span 2">
+        <option value="1600x1000">16:10 — 1600×1000</option>
+        <option value="1920x1080">16:9 — 1920×1080</option>
+        <option value="1200x1200">1:1 — 1200×1200</option>
+        <option value="1080x1350">4:5 — 1080×1350</option>
+        <option value="1080x1920">9:16 — 1080×1920</option>
+        <option value="1000x1400">Card — 1000×1400</option>
+      </select></div>
+    <div class="row"><label>Record</label>
+      <select id="dur" style="grid-column:span 2">
+        <option value="5">5 seconds</option><option value="10" selected>10 seconds</option><option value="20">20 seconds</option>
+      </select></div>
+    <div class="row"><label>Format</label>
+      <select id="fmt" style="grid-column:span 2">
+        <option value="webm-vp9">WebM — VP9</option>
+        <option value="webm-vp8">WebM — VP8</option>
+        <option value="mp4">MP4 — H.264</option>
+      </select></div>
+    <div class="row"><label>Export scale</label>
+      <select id="scale" style="grid-column:span 2">
+        <option value="1">1× — screen size</option>
+        <option value="2" selected>2×</option>
+        <option value="3">3×</option>
+        <option value="4">4×</option>
+      </select></div>
+    <div class="hint" id="scalehint"></div>
+    <div class="actions">
+      <button id="rand">Randomize</button>
+      <button id="pause">Pause</button>
+      <button id="png">Save PNG</button>
+      <button id="rec" class="primary">Record</button>
+    </div>
+    <div class="hint">space = pause · r = randomize</div>
+  </div>
+</aside>
+
+<script>
+// ---------- palette ----------
+const RAMPS = {
+  P: ['#F3E8FF','#E9D4FF','#DAB2FF','#C27AFF','#AD46FF','#9810FA','#8200DB','#6E11B0','#59168B'],
+  I: ['#E0E7FF','#C6D2FF','#A3B3FF','#7C86FF','#615FFF','#4F39F6','#432DD7','#372AAC','#312C85'],
+  O: ['#FFEDD4','#FFD6A7','#FFB86A','#FF8904','#FF6900','#F54900','#CA3500','#9F2D00','#7E2A0C'],
+  S: ['#F5F5F4','#E7E5E4','#D6D3D1','#A6A09B','#79716B','#57534D','#44403B','#292524','#1C1917'],
+};
+const SW = {};
+for(const r in RAMPS) RAMPS[r].forEach((h,i) => SW[r + (i+1)*100] = h);
+const RAMP_NAMES = {P:'Purple', I:'Indigo', O:'Orange', S:'Stone'};
+
+const SCHEMES = {
+  Card:   {bg:'O100', inks:['P900']},
+  Signal: {bg:'I600', inks:['I200','O400','S100','I900']},
+  Lilac:  {bg:'P100', inks:['I600','P500','O500']},
+  Ink:    {bg:'S900', inks:['O400','P400','S100','I400']},
+  Stone:  {bg:'S100', inks:['S900','O600','I600']},
+  Ember:  {bg:'O600', inks:['O100','P200','S900']},
+  Violet: {bg:'P900', inks:['P300','O300','I200','S100']},
+};
+
+// ---------- presets ----------
+const RATIOS = [[1,1],[1,2],[1,3],[2,3],[3,4],[3,5],[4,5],[5,6]];
+const DEFAULTS = {
+  curve:'lissajous', layout:'single', rows:4, cols:5, labels:false,
+  a:2, b:1, phase:0, speed:.3, mod:0,
+  lines:1, spread:.6, echo:'nested', width:5,
+  colorMode:'solid', dash:18, accent:.2, flow:.4,
+  bg:'S100', inks:['S900'],
+  pixel:0, block:12, blockW:1.5, smear:0, gain:4, glitch:.35, fade:.4, view:'both', smooth:.85, grain:.15, tooth:0, trails:0, fps:0,
+};
+const PRESETS = {
+  Weathered:  {curve:'lissajous', layout:'grid', rows:2, cols:3, lines:2, echo:'phase', spread:.2, width:7, colorMode:'segments', dash:34, accent:.3, flow:.4, ...SCHEMES.Ember, pixel:.4, smear:.8, block:16, gain:3, glitch:.3, fade:.45, grain:.4, tooth:.5},
+  Loop:       {curve:'lissajous', a:2, b:1, lines:4, spread:.75, width:7, colorMode:'segments', dash:30, accent:.25, flow:.6, speed:.15, ...SCHEMES.Lilac},
+  Signal:     {curve:'wave', a:2, b:3, mod:.25, speed:.45, lines:4, spread:1, width:7, colorMode:'segments', dash:36, accent:.22, flow:.5, ...SCHEMES.Signal},
+  Vibrations: {aspect:'1000x1400', curve:'lissajous', layout:'grid', rows:8, cols:5, labels:true, width:3, speed:.25, ...SCHEMES.Card, grain:.25, tooth:.25},
+  Bloom:      {curve:'rose', a:5, b:3, lines:4, echo:'phase', spread:.3, width:4.5, colorMode:'gradient', dash:40, flow:.3, speed:.2, ...SCHEMES.Violet, pixel:.12, smear:.5, block:9},
+  Pendulum:   {curve:'harmono', a:2, b:3, mod:.35, width:3, colorMode:'gradient', dash:60, flow:.2, speed:.12, ...SCHEMES.Ink, pixel:.25, smear:.6, gain:5, grain:.35, block:8, blockW:2.5},
+  Gears:      {curve:'spiro', a:7, b:3, mod:.6, lines:3, spread:.45, width:5, colorMode:'lines', speed:.2, ...SCHEMES.Stone},
+};
+
+const state = {...DEFAULTS, ...PRESETS.Loop, seed: Math.random()*1000, pickFor:'inks'};
+let paused = false, t = 0, last = performance.now();
+
+// ---------- curve math (all return points in ~[-1,1]) ----------
+const TAU = Math.PI*2;
+const gcd = (x,y) => y ? gcd(y, x%y) : x;
+function curve(fam, a, b, d, mod, k){
+  const out = [];
+  if(fam === 'lissajous'){
+    const n = 260*Math.max(a,b) + 260;
+    for(let j=0;j<=n;j++){ const u = j/n*TAU, damp = Math.exp(-mod*2.5*j/n);
+      out.push(Math.sin(b*u + d)*damp, Math.sin(a*u)*damp); }
+  } else if(fam === 'harmono'){
+    const n = 5000, T = TAU*26, kd = .25 + mod*3.5;
+    for(let j=0;j<=n;j++){ const s = j/n*T, damp = Math.exp(-kd*j/n);
+      out.push(damp*(.6*Math.sin(b*s + d) + .4*Math.sin(a*1.004*s)),
+               damp*(.6*Math.sin(a*s + 1.5708) + .4*Math.sin(b*1.006*s + d*.5 + .8))); }
+  } else if(fam === 'rose'){
+    const kk = a/b, n = 500*b + 400, rot = d*.25;
+    for(let j=0;j<=n;j++){ const th = j/n*TAU*b;
+      const r = Math.cos(kk*th)*(1 - mod*.5*(1 + Math.sin(th + d)));
+      out.push(r*Math.cos(th + rot), r*Math.sin(th + rot)); }
+  } else if(fam === 'spiro'){
+    let R = Math.max(a,b), r = Math.min(a,b); if(R === r) R++;
+    const g = gcd(R,r), per = TAU*r/g, pen = r*(.3 + mod*1.2), norm = R - r + pen, n = Math.round(400*r/g) + 400, rot = d*.2;
+    for(let j=0;j<=n;j++){ const s = j/n*per;
+      const x = ((R-r)*Math.cos(s) + pen*Math.cos((R-r)/r*s))/norm, y = ((R-r)*Math.sin(s) - pen*Math.sin((R-r)/r*s))/norm;
+      out.push(x*Math.cos(rot) - y*Math.sin(rot), x*Math.sin(rot) + y*Math.cos(rot)); }
+  } else { // wave bundle
+    const n = 500;
+    for(let j=0;j<=n;j++){ const x = -1.15 + 2.3*j/n;
+      out.push(x, k*.8*Math.sin(Math.PI*a*(x+1)/2 + d) + mod*.3*Math.sin(Math.PI*b*x*.5 + d*.7)); }
+  }
+  return out;
+}
+
+// ---------- drawing ----------
+const canvas = document.getElementById('c');
+const src = document.createElement('canvas');
+const ctx = src.getContext('2d');
+const hash = (a,b) => { const s = Math.sin(a*12.9898 + b*78.233 + state.seed)*43758.5453; return s - Math.floor(s); };
+const hexRgb = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+let lut = [];
+function buildLut(){
+  const cols = state.inks.map(k => hexRgb(SW[k])); const n = cols.length; lut = [];
+  for(let i=0;i<64;i++){ const f = i/64*n, i0 = Math.floor(f)%n, i1 = (i0+1)%n, m = f - Math.floor(f);
+    lut.push(`rgb(${cols[i0].map((c,j) => Math.round(c + (cols[i1][j]-c)*m)).join(',')})`); }
+}
+
+function colorAt(s, li, ci, inks){
+  const unit = state.dash*sc();
+  if(state.colorMode === 'gradient'){ const f = s/(unit*8); return lut[Math.floor(((f%1)+1)%1*64)]; }
+  const k = Math.floor(s/unit), n = inks.length;
+  if(n < 2 || hash(k, li*31 + ci*7) > state.accent) return inks[0];
+  return inks[1 + Math.floor(hash(k, li + 99 + ci)*(n-1))];
+}
+
+function strokeLine(pts, li, ci, inks){
+  const m = state.colorMode;
+  if(m === 'solid' || m === 'lines'){
+    ctx.strokeStyle = m === 'solid' ? inks[0] : inks[(li + ci) % inks.length];
+    ctx.beginPath(); ctx.moveTo(pts[0], pts[1]);
+    for(let j=2;j<pts.length;j+=2) ctx.lineTo(pts[j], pts[j+1]);
+    ctx.stroke(); return;
+  }
+  ctx.lineCap = 'butt';
+  const off = t*state.flow*120*sc();
+  let cum = 0, cur = colorAt(off, li, ci, inks);
+  ctx.beginPath(); ctx.moveTo(pts[0], pts[1]);
+  for(let j=2;j<pts.length;j+=2){
+    const px = pts[j-2], py = pts[j-1], x = pts[j], y = pts[j+1];
+    const len = Math.hypot(x-px, y-py);
+    const c = colorAt(cum + len/2 + off, li, ci, inks);
+    if(c !== cur){ ctx.strokeStyle = cur; ctx.stroke(); ctx.beginPath(); ctx.moveTo(px, py); cur = c; }
+    ctx.lineTo(x, y); cum += len;
+  }
+  ctx.strokeStyle = cur; ctx.stroke();
+  ctx.lineCap = 'round';
+}
+
+const sc = () => src.height/1000;
+
+function drawCurves(){
+  const W = src.width, H = src.height, s = sc();
+  if(state.trails > 0){
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = `rgba(0,0,0,${1 - state.trails})`; ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'source-over';
+  } else ctx.clearRect(0,0,W,H);
+
+  const inks = state.inks.map(k => SW[k]);
+  ctx.lineWidth = state.width*s; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const grid = state.layout === 'grid';
+  const rows = grid ? state.rows : 1, cols = grid ? state.cols : 1;
+  const m = grid ? Math.min(W,H)*.07 : 0;
+  const cw = (W - 2*m)/cols, ch = (H - 2*m)/rows;
+  const wave = state.curve === 'wave';
+  const N = state.lines;
+  const base = state.phase + t*state.speed;
+
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const ci = r*cols + c;
+    const [a, b] = grid ? RATIOS[r % RATIOS.length] : [state.a, state.b];
+    const d0 = base + (grid && cols > 1 ? c/(cols-1)*Math.PI : 0);
+    const cx = m + (c + .5)*cw, cy = m + (r + .5)*ch;
+    let rx, ry;
+    if(grid){ rx = cw*(wave ? .43/1.15 : .36); ry = ch*.36; }
+    else if(wave){ rx = W/2/1.0; ry = H*.34; }
+    else { rx = ry = Math.min(W,H)*.4; }
+
+    for(let i=0;i<N;i++){
+      const e = N > 1 ? i/(N-1)*2 - 1 : 1, f = N > 1 ? i/(N-1) : 0;
+      let scale = 1, dp = 0, dy = 0, k = 1;
+      if(state.echo === 'nested'){ if(wave) k = 1 + (e - 1)*state.spread; else scale = 1 - state.spread*.9*f; }
+      else if(state.echo === 'phase') dp = e*state.spread*Math.PI*.5;
+      else dy = e*state.spread*.25;
+      const raw = curve(state.curve, a, b, d0 + dp, state.mod, k);
+      const pts = new Float32Array(raw.length);
+      for(let j=0;j<raw.length;j+=2){ pts[j] = cx + raw[j]*rx*scale; pts[j+1] = cy - (raw[j+1]*scale + dy)*ry; }
+      strokeLine(pts, i, ci, inks);
+    }
+    if(grid && state.labels){
+      ctx.fillStyle = inks[0]; ctx.globalAlpha = .7;
+      ctx.font = `${Math.round(13*s)}px "IBM Plex Mono", monospace`;
+      ctx.fillText(`${a}:${b}`, cx - cw/2 + 6*s, cy - ch/2 + 16*s);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// ---------- WebGL post: pixel weathering (2 passes) ----------
+// pass 1 builds the block layer and blends it with last frame's (temporal smoothing, kills flicker)
+// pass 2 composites line + blocks over the background with paper tooth and grain
+const gl = canvas.getContext('webgl2', {preserveDrawingBuffer:true, antialias:false});
+const floatFB = !!gl.getExtension('EXT_color_buffer_float');
+const VS = `#version 300 es
+in vec2 a; void main(){ gl_Position = vec4(a,0.,1.); }`;
+const COMMON = `#version 300 es
+precision highp float;
+uniform sampler2D uTex; uniform vec2 uRes; uniform float uTime, uSeed;
+uniform float uPixel, uBlock, uBlockW, uSmear, uGain, uGlitch, uFade, uView;
+out vec4 o;
+float h21(vec2 p){ p = fract(p*vec2(123.34,456.21) + uSeed*.0137); p += dot(p, p+45.32); return fract(p.x*p.y); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
+  return mix(mix(h21(i), h21(i+vec2(1,0)), f.x), mix(h21(i+vec2(0,1)), h21(i+vec2(1,1)), f.x), f.y); }
+vec2 P(){ return vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y); }
+void grid(vec2 p, out vec2 bs, out vec2 cid){
+  bs = vec2(uBlock*uBlockW, uBlock)*(uRes.y/1000.)*2.;
+  cid = floor(p/bs);
+  if(h21(cid + 17.1) < .5){ bs *= .5; cid = floor(p/bs);
+    if(h21(cid + 41.3) < .35){ bs *= .5; cid = floor(p/bs); } }
+}
+vec4 avgBlock(vec2 c, vec2 bs){
+  float L = log2(max(max(bs.x, bs.y)*.5, 1.));
+  vec2 q = bs*.25;
+  return (textureLod(uTex, (c+vec2(-q.x,-q.y))/uRes, L) + textureLod(uTex, (c+vec2(q.x,-q.y))/uRes, L)
+        + textureLod(uTex, (c+vec2(-q.x,q.y))/uRes, L) + textureLod(uTex, (c+vec2(q.x,q.y))/uRes, L))*.25;
+}
+`;
+const FS_BLOCKS = COMMON + `
+uniform sampler2D uPrev; uniform float uPersist;
+void main(){
+  vec2 bs, cid; grid(P(), bs, cid);
+  vec2 cc = (cid + .5)*bs;
+  vec4 b = avgBlock(cc, bs);
+  if(uSmear > 0.){
+    vec4 tr = vec4(0.); float ws = 0., w = 1.;
+    for(int k=1;k<7;k++){ w *= .78; tr += avgBlock(cc - vec2(float(k)*bs.x*.9, 0.), bs)*w; ws += w; }
+    b += (tr/ws)*(1. - min(b.a*uGain, 1.))*uSmear*2.;
+  }
+  float a = clamp(b.a*uGain, 0., 1.);
+  vec4 cur = vec4(b.rgb/max(b.a, 1e-4)*a, a);
+  o = mix(cur, texelFetch(uPrev, ivec2(gl_FragCoord.xy), 0), uPersist);
+}`;
+const FS_COMP = COMMON + `
+uniform sampler2D uBlk; uniform vec3 uBg; uniform float uGrain, uTooth;
+void main(){
+  float sc = uRes.y/1000.;
+  vec2 p = P();
+  vec4 px = textureLod(uTex, p/uRes, 0.);
+  bool boxes = uView > 1.5;
+  if(boxes) px = vec4(0.);
+  if((uPixel > 0. && uView < .5) || boxes){
+    vec2 bs, cid; grid(p, bs, cid);
+    // every block runs its own staggered life cycle and eases in/out
+    float life = uTime*uGlitch + h21(cid + 5.3)*7.;
+    float f = fract(life);
+    float env = smoothstep(0., uFade, f)*(1. - smoothstep(1. - uFade, 1., f));
+    float amt = boxes ? 1. : step(h21(cid*1.37 + floor(life)*7.1), uPixel)*(uGlitch > 0. ? env : 1.);
+    px = mix(px, texelFetch(uBlk, ivec2(gl_FragCoord.xy), 0), amt);
+  }
+  vec3 col = uBg*(1. - px.a) + px.rgb;
+  float tooth = vn(p*.5/sc)*.6 + h21(floor(p/(sc*1.2)))*.4;
+  col = mix(col, uBg, uTooth*smoothstep(.45, 1., tooth)*px.a);
+  col += (h21(p + vec2(91.7,37.3)) - .5)*uGrain*.16;   // static paper grain (no per-frame shimmer)
+  o = vec4(col, 1.);
+}`;
+function sh(type, s){ const x = gl.createShader(type); gl.shaderSource(x, s); gl.compileShader(x);
+  if(!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; }
+function program(fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, 'a'); gl.linkProgram(p);
+  const U = {}; for(let i=0;i<gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);i++){ const nm = gl.getActiveUniform(p,i).name; U[nm] = gl.getUniformLocation(p, nm); }
+  return {p, U};
+}
+const progBlocks = program(FS_BLOCKS), progComp = program(FS_COMP);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+function makeTex(filter){
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+const tex = makeTex(gl.LINEAR_MIPMAP_LINEAR);
+gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+
+// ping-pong targets for the smoothed block layer
+const blk = [0,1].map(() => ({t: makeTex(gl.NEAREST), fb: gl.createFramebuffer()}));
+let blkCur = 0, blkFresh = true;
+function sizeTargets(w, h){
+  for(const b of blk){
+    gl.bindTexture(gl.TEXTURE_2D, b.t);
+    if(floatFB) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, b.fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, b.t, 0);
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  blkFresh = true;   // no history yet: first frame shows blocks at full strength
+}
+
+const MAX_PX = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), gl.getParameter(gl.MAX_VIEWPORT_DIMS)[0]);
+function exportDims(k){
+  const [w,h] = document.getElementById('aspect').value.split('x').map(Number);
+  k = Math.min(k, MAX_PX/Math.max(w,h));
+  return [Math.round(w*k), Math.round(h*k)];
+}
+// everything is drawn relative to canvas height, so scaling keeps the look identical, just sharper
+function setSize(k = 1){
+  const [w,h] = exportDims(k);
+  canvas.width = src.width = w; canvas.height = src.height = h; gl.viewport(0,0,w,h);
+  sizeTargets(w, h);
+  const [ew, eh] = exportDims(+document.getElementById('scale').value);
+  const [bw, bh] = exportDims(1), vk = Math.min(+document.getElementById('scale').value, 3840/Math.max(bw, bh));
+  document.getElementById('scalehint').textContent = `PNG ${ew} × ${eh} · video ${Math.round(bw*vk)} × ${Math.round(bh*vk)}`;
+}
+const exportScale = () => +document.getElementById('scale').value;
+
+function setCommon(U, st){
+  gl.uniform2f(U.uRes, canvas.width, canvas.height);
+  gl.uniform1f(U.uTime, st); gl.uniform1f(U.uSeed, state.seed);
+  gl.uniform1f(U.uPixel, state.pixel); gl.uniform1f(U.uBlock, state.block); gl.uniform1f(U.uBlockW, state.blockW);
+  gl.uniform1f(U.uSmear, state.smear); gl.uniform1f(U.uGain, state.gain); gl.uniform1f(U.uGlitch, state.glitch);
+  gl.uniform1f(U.uFade, state.fade); gl.uniform1f(U.uView, {both:0, line:1, boxes:2}[state.view]);
+  gl.uniform1i(U.uTex, 0);
+}
+function render(dt = 1/60){
+  drawCurves();
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  const st = state.fps > 0 ? Math.floor(t*state.fps)/state.fps : t;
+  const needBlocks = state.view === 'boxes' || (state.view === 'both' && state.pixel > 0);
+
+  if(needBlocks){
+    const {p, U} = progBlocks; gl.useProgram(p); setCommon(U, st);
+    const next = 1 - blkCur;
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, blk[blkCur].t); gl.uniform1i(U.uPrev, 1);
+    // smoothing is framerate-independent: same feel at 60fps live or slower 4K recording
+    gl.uniform1f(U.uPersist, blkFresh ? 0 : Math.pow(state.smooth, dt*60));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, blk[next].fb);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    blkCur = next; blkFresh = false;
+  } else blkFresh = true;
+
+  const {p, U} = progComp; gl.useProgram(p); setCommon(U, st);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, blk[blkCur].t); gl.uniform1i(U.uBlk, 1);
+  gl.uniform3fv(U.uBg, hexRgb(SW[state.bg]).map(v => v/255));
+  gl.uniform1f(U.uGrain, state.grain); gl.uniform1f(U.uTooth, state.tooth);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+function loop(now){
+  const dt = Math.min(.1, (now - last)/1000); last = now;
+  if(!paused){
+    const prev = t; t += dt;
+    // stop-motion: only redraw when the stepped frame changes
+    if(state.fps > 0 && Math.floor(prev*state.fps) === Math.floor(t*state.fps)){ requestAnimationFrame(loop); return; }
+  }
+  render(dt || 1/60);
+  requestAnimationFrame(loop);
+}
+
+// ---------- UI ----------
+const MOD_HINT = {lissajous:'modulate = damping', harmono:'modulate = decay', rose:'modulate = petal warp', spiro:'modulate = pen distance', wave:'modulate = second harmonic'};
+const UI = [
+  ['Curve', [
+    ['seg','curve',{lissajous:'Lissajous', harmono:'Harmonograph', rose:'Rose', spiro:'Spirograph', wave:'Wave'}],
+    ['range','a','Freq a',1,12,1], ['range','b','Freq b',1,12,1],
+    ['range','phase','Phase',0,6.28,.01], ['range','speed','Drift',0,2,.01], ['range','mod','Modulate',0,1,.01],
+    ['hint','modhint'],
+  ]],
+  ['Layout', [
+    ['seg','layout',{single:'Single', grid:'Chart grid'}],
+    ['range','rows','Rows',1,8,1], ['range','cols','Columns',1,8,1],
+    ['seg','labels',{false:'No labels', true:'Ratio labels'}],
+    ['hint','gridhint'],
+  ]],
+  ['Lines', [
+    ['range','lines','Count',1,10,1], ['range','spread','Spread',0,1,.01],
+    ['seg','echo',{nested:'Nested', phase:'Phase', offset:'Offset'}],
+    ['range','width','Weight',1,16,.1],
+  ]],
+  ['Color', [
+    ['schemes'],
+    ['seg','pickFor',{bg:'Pick background', inks:'Pick inks'}],
+    ['swatches'],
+    ['seg','colorMode',{solid:'Solid', lines:'Per line', segments:'Segments', gradient:'Gradient'}],
+    ['range','dash','Segment',4,80,1], ['range','accent','Accent dashes',0,1,.01], ['range','flow','Flow',-2,2,.01],
+  ]],
+  ['Weathering', [
+    ['seg','view',{both:'Both', line:'Line only', boxes:'Blocks only'}],
+    ['range','pixel','Pixel blocks',0,1,.01], ['range','block','Block size',3,40,.5], ['range','blockW','Block width',.5,4,.01],
+    ['range','smear','Smear',0,1,.01], ['range','gain','Block ink',1,10,.1], ['range','glitch','Block tempo',0,1.5,.01], ['range','fade','Block ease',.05,.5,.01], ['range','smooth','Block smoothing',0,.97,.01],
+    ['range','grain','Grain',0,1,.01], ['range','tooth','Paper tooth',0,1,.01],
+    ['range','trails','Trails',0,.98,.01], ['range','fps','Stop-motion fps',0,24,1],
+  ]],
+];
+
+const refs = {ranges:{}, segs:{}};
+const fmt = (v, step) => step >= 1 ? String(Math.round(v)) : v.toFixed(2);
+const box = document.getElementById('controls');
+for(const [title, items] of UI){
+  const g = document.createElement('div'); g.className = 'group'; g.innerHTML = `<div class="gt">${title}</div>`;
+  for(const it of items){
+    if(it[0] === 'range'){
+      const [, k, label, min, max, step] = it;
+      const row = document.createElement('div'); row.className = 'row';
+      row.innerHTML = `<label title="${label}">${label}</label><input type="range" min="${min}" max="${max}" step="${step}"><output></output>`;
+      const inp = row.querySelector('input'), out = row.querySelector('output');
+      inp.oninput = () => { state[k] = +inp.value; out.textContent = fmt(+inp.value, step); if(k === 'trails') ctx.clearRect(0,0,src.width,src.height); };
+      refs.ranges[k] = {inp, out, step}; g.appendChild(row);
+    } else if(it[0] === 'seg'){
+      const [, k, opts] = it; const s = document.createElement('div'); s.className = 'seg';
+      for(const v in opts){ const b = document.createElement('button'); b.textContent = opts[v]; b.dataset.v = v;
+        b.onclick = () => { state[k] = v === 'true' ? true : v === 'false' ? false : v; syncUI(); }; s.appendChild(b); }
+      refs.segs[k] = s; g.appendChild(s);
+    } else if(it[0] === 'hint'){
+      const d = document.createElement('div'); d.className = 'hint'; refs[it[1]] = d; g.appendChild(d);
+    } else if(it[0] === 'schemes'){
+      const s = document.createElement('div'); s.className = 'seg';
+      for(const name in SCHEMES){ const sch = SCHEMES[name]; const b = document.createElement('button');
+        b.innerHTML = `<span class="chips">${[sch.bg, ...sch.inks].map(k => `<i style="background:${SW[k]}"></i>`).join('')}</span>${name}`;
+        b.onclick = () => { state.bg = sch.bg; state.inks = [...sch.inks]; syncUI(); }; s.appendChild(b); }
+      g.appendChild(s);
+    } else if(it[0] === 'swatches'){
+      const s = document.createElement('div'); s.className = 'swatches';
+      for(const r in RAMPS) RAMPS[r].forEach((h, i) => {
+        const key = r + (i+1)*100, b = document.createElement('button');
+        b.className = 'sw'; b.style.background = h; b.title = `${RAMP_NAMES[r]} ${(i+1)*100} ${h}`; b.dataset.k = key;
+        b.innerHTML = '<span class="n"></span>';
+        b.querySelector('.n').style.color = i < 4 ? '#1C1917' : '#F5F5F4';
+        b.onclick = () => {
+          if(state.pickFor === 'bg') state.bg = key;
+          else { const at = state.inks.indexOf(key);
+            if(at >= 0){ if(state.inks.length > 1) state.inks.splice(at, 1); } else state.inks.push(key); }
+          syncUI();
+        };
+        s.appendChild(b);
+      });
+      refs.swatches = s; g.appendChild(s);
+      const h = document.createElement('div'); h.className = 'hint';
+      h.textContent = 'ring = background · numbers = ink order (first ink is the main line color)';
+      g.appendChild(h);
+    }
+  }
+  box.appendChild(g);
+}
+
+function syncUI(){
+  for(const k in refs.ranges){ const {inp, out, step} = refs.ranges[k]; inp.value = state[k]; out.textContent = fmt(state[k], step); }
+  for(const k in refs.segs) [...refs.segs[k].children].forEach(b => b.classList.toggle('on', b.dataset.v === String(state[k])));
+  [...refs.swatches.children].forEach(b => {
+    b.classList.toggle('bg', b.dataset.k === state.bg);
+    const at = state.inks.indexOf(b.dataset.k); b.querySelector('.n').textContent = at >= 0 ? at + 1 : '';
+  });
+  refs.modhint.textContent = MOD_HINT[state.curve];
+  refs.gridhint.textContent = state.layout === 'grid' ? 'rows step through ratios 1:1 → 5:6 · columns sweep phase 0 → π' : '';
+  buildLut();
+}
+
+const presetBox = document.getElementById('presets');
+for(const name in PRESETS){
+  const b = document.createElement('button'); b.textContent = name;
+  b.onclick = () => applyPreset(name); presetBox.appendChild(b);
+}
+function applyPreset(name){
+  const {aspect, ...p} = PRESETS[name];
+  const view = state.view || 'both';
+  Object.assign(state, DEFAULTS, p, {view}); state.inks = [...state.inks];
+  if(aspect){ document.getElementById('aspect').value = aspect; setSize(recorder ? exportScale() : 1); }
+  [...presetBox.children].forEach(b => b.classList.toggle('on', b.textContent === name));
+  ctx.clearRect(0,0,src.width,src.height); syncUI();
+}
+
+function randomize(){
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+  const curveName = pick(['lissajous','harmono','rose','spiro','wave']);
+  const sch = SCHEMES[pick(Object.keys(SCHEMES))];
+  Object.assign(state, {
+    curve: curveName, layout: Math.random() < .25 ? 'grid' : 'single',
+    rows: 2 + Math.floor(Math.random()*4), cols: 2 + Math.floor(Math.random()*4),
+    a: 1 + Math.floor(Math.random()*7), b: 1 + Math.floor(Math.random()*7),
+    mod: Math.random()*.7, lines: pick([1,1,2,3,4,5]), spread: .2 + Math.random()*.8,
+    echo: pick(['nested','phase','offset']), width: 4 + Math.random()*5,
+    colorMode: pick(['solid','lines','segments','segments','gradient']), dash: 8 + Math.random()*40,
+    bg: sch.bg, inks: [...sch.inks], pixel: Math.random() < .4 ? Math.random()*.5 : 0, smear: Math.random()*.8,
+    seed: Math.random()*1000,
+  });
+  [...presetBox.children].forEach(b => b.classList.remove('on'));
+  ctx.clearRect(0,0,src.width,src.height); syncUI();
+}
+
+document.getElementById('aspect').onchange = () => setSize(1);
+document.getElementById('rand').onclick = randomize;
+const pauseBtn = document.getElementById('pause');
+function togglePause(){ paused = !paused; pauseBtn.textContent = paused ? 'Play' : 'Pause'; }
+pauseBtn.onclick = togglePause;
+addEventListener('keydown', e => {
+  if(e.target.tagName === 'SELECT') return;
+  if(e.code === 'Space'){ e.preventDefault(); togglePause(); }
+  if(e.key === 'r') randomize();
+});
+function download(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+document.getElementById('png').onclick = () => {
+  if(recorder) return;
+  setSize(exportScale()); render();
+  canvas.toBlob(b => { download(b, `harmonic-${canvas.width}x${canvas.height}-${Date.now()}.png`); setSize(1); });
+};
+document.getElementById('scale').onchange = () => setSize(1);
+const FORMATS = {
+  'webm-vp9': ['video/webm;codecs=vp9', 'video/webm'],
+  'webm-vp8': ['video/webm;codecs=vp8'],
+  'mp4':      ['video/mp4;codecs=avc1', 'video/mp4'],
+};
+const pickMime = f => FORMATS[f].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+{ // mark formats this browser can't record, default to the first that works
+  const sel = document.getElementById('fmt');
+  for(const o of sel.options) if(!pickMime(o.value)){ o.disabled = true; o.textContent += ' (unsupported here)'; }
+  const ok = [...sel.options].find(o => !o.disabled); if(ok) sel.value = ok.value;
+}
+const recBtn = document.getElementById('rec'), badge = document.getElementById('rec-badge');
+let recorder = null;
+recBtn.onclick = () => {
+  if(recorder){ recorder.stop(); return; }
+  const mimeType = pickMime(document.getElementById('fmt').value);
+  if(!mimeType){ alert('This browser cannot record that format. Try another one in Format.'); return; }
+  // video encoders top out around 4K, so cap the recording's long side at 3840
+  const [bw, bh] = exportDims(1);
+  setSize(Math.min(exportScale(), 3840/Math.max(bw, bh)));
+  const mp = canvas.width*canvas.height/1e6;
+  recorder = new MediaRecorder(canvas.captureStream(60), {mimeType, videoBitsPerSecond: Math.min(100e6, 16e6*Math.max(1, mp/1.6))});
+  const chunks = [];
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    download(new Blob(chunks, {type: mimeType}), `harmonic-${Date.now()}.${mimeType.includes('mp4') ? 'mp4' : 'webm'}`);
+    recorder = null; recBtn.textContent = 'Record'; badge.style.display = 'none'; setSize(1);
+  };
+  if(paused) togglePause();
+  recorder.start(); recBtn.textContent = 'Stop'; badge.style.display = 'block';
+  setTimeout(() => recorder && recorder.state === 'recording' && recorder.stop(), +document.getElementById('dur').value*1000);
+};
+
+setSize();
+applyPreset('Loop');
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
