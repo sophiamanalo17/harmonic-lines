@@ -53,6 +53,9 @@ button.primary{background:var(--accent);color:var(--accent-text);border-color:va
 .sw .n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
 .hint{color:var(--muted);margin:2px 0 4px}
+input[type=color]{width:30px;height:27px;padding:2px;border:1px solid var(--line);border-radius:3px;background:transparent;cursor:pointer}
+.accents{display:flex;gap:16px;margin:4px 0 2px}
+.accents label{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
 @media (max-width:760px){
   body{flex-direction:column;overflow:auto}
   #stage{padding:16px;min-height:55vh}
@@ -64,7 +67,15 @@ button.primary{background:var(--accent);color:var(--accent-text);border-color:va
 <div id="stage"><canvas id="c"></canvas><div id="rec-badge">● REC</div></div>
 <aside>
   <h1>Harmonic Lines</h1>
-  <p class="sub">curve studies · pixel weathering</p>
+  <p class="sub"><span id="lockup">Base44 × NYU</span> · curve studies</p>
+  <div class="group"><div class="gt">School</div>
+    <div class="seg" id="schools"></div>
+    <div class="accents">
+      <label>Accent 1 <input type="color" id="acc0" title="Darkest value of accent 1"></label>
+      <label>Accent 2 <input type="color" id="acc1" title="Darkest value of accent 2"></label>
+    </div>
+    <div class="hint">pick each accent’s darkest value · orange stays Base44</div>
+  </div>
   <div class="group"><div class="gt">Preset</div><div class="seg" id="presets"></div></div>
   <div id="controls"></div>
   <div class="group">
@@ -108,24 +119,52 @@ button.primary{background:var(--accent);color:var(--accent-text);border-color:va
 
 <script>
 // ---------- palette ----------
+// P and I are the two school accent ramps; orange and stone stay Base44 for every campus.
+// each accent is a hand-tuned ramp or just its darkest value (900), which rampFrom() fills in
+const SCHOOLS = {
+  NYU:  [{name:'Purple',   ramp:['#F3E8FF','#E9D4FF','#DAB2FF','#C27AFF','#AD46FF','#9810FA','#8200DB','#6E11B0','#59168B']},
+         {name:'Indigo',   ramp:['#E0E7FF','#C6D2FF','#A3B3FF','#7C86FF','#615FFF','#4F39F6','#432DD7','#372AAC','#312C85']}],
+  UCLA: [{name:'Blue',     ramp:['#DBEAFE','#BEDBFF','#8EC5FF','#51A2FF','#2B7FFF','#155DFC','#1447E6','#193CB8','#1C398E']},
+         {name:'Deep Blue', dark:'#003B5C'}],
+  USC:  [{name:'Cardinal', ramp:['#FFE2E2','#FFC9C9','#FFA2A2','#FF6467','#FB2C36','#E7000B','#C10007','#9F0712','#82181A']},
+         {name:'Gold',      dark:'#7A5C00'}],
+};
+const ACCENT_ROWS = ['P','I'];
 const RAMPS = {
-  P: ['#F3E8FF','#E9D4FF','#DAB2FF','#C27AFF','#AD46FF','#9810FA','#8200DB','#6E11B0','#59168B'],
-  I: ['#E0E7FF','#C6D2FF','#A3B3FF','#7C86FF','#615FFF','#4F39F6','#432DD7','#372AAC','#312C85'],
+  P: SCHOOLS.NYU[0].ramp,
+  I: SCHOOLS.NYU[1].ramp,
   O: ['#FFEDD4','#FFD6A7','#FFB86A','#FF8904','#FF6900','#F54900','#CA3500','#9F2D00','#7E2A0C'],
   S: ['#F5F5F4','#E7E5E4','#D6D3D1','#A6A09B','#79716B','#57534D','#44403B','#292524','#1C1917'],
 };
 const SW = {};
-for(const r in RAMPS) RAMPS[r].forEach((h,i) => SW[r + (i+1)*100] = h);
-const RAMP_NAMES = {P:'Purple', I:'Indigo', O:'Orange', S:'Stone'};
+const indexSwatches = () => { for(const r in RAMPS) RAMPS[r].forEach((h,i) => SW[r + (i+1)*100] = h); };
+indexSwatches();
+const RAMP_NAMES = {P:'Accent 1', I:'Accent 2', O:'Orange', S:'Stone'};
+
+// build a 100→900 ramp from the darkest value: keep the hue, lift lightness toward white,
+// and push saturation up on the lighter steps so tints don't go grey
+function rampFrom(hex){
+  const [r,g,b] = [1,3,5].map(i => parseInt(hex.slice(i,i+2),16)/255);
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx + mn)/2, d = mx - mn;
+  const s = d ? d/(1 - Math.abs(2*l - 1)) : 0;
+  const h = !d ? 0 : mx === r ? ((g - b)/d + 6)%6 : mx === g ? (b - r)/d + 2 : (r - g)/d + 4;
+  return [...Array(9)].map((_, i) => {
+    const t = i/8, L = .95 + (l - .95)*Math.pow(t, 1.15), S = s + (Math.min(1, s*1.3) - s)*(1 - t);
+    const c = (1 - Math.abs(2*L - 1))*S, x = c*(1 - Math.abs(h%2 - 1)), m = L - c/2;
+    const rgb = [[c,x,0],[x,c,0],[0,c,x],[0,x,c],[x,0,c],[c,0,x]][Math.floor(h)%6];
+    return '#' + rgb.map(v => Math.round((v + m)*255).toString(16).padStart(2,'0')).join('').toUpperCase();
+  });
+}
+const accentRamp = a => a.ramp || rampFrom(a.dark);
 
 const SCHEMES = {
   Card:   {bg:'O100', inks:['P900']},
   Signal: {bg:'I600', inks:['I200','O400','S100','I900']},
-  Lilac:  {bg:'P100', inks:['I600','P500','O500']},
+  Tint:   {bg:'P100', inks:['I600','P500','O500']},
   Ink:    {bg:'S900', inks:['O400','P400','S100','I400']},
   Stone:  {bg:'S100', inks:['S900','O600','I600']},
   Ember:  {bg:'O600', inks:['O100','P200','S900']},
-  Violet: {bg:'P900', inks:['P300','O300','I200','S100']},
+  Deep:   {bg:'P900', inks:['P300','O300','I200','S100']},
 };
 
 // ---------- presets ----------
@@ -140,10 +179,10 @@ const DEFAULTS = {
 };
 const PRESETS = {
   Weathered:  {curve:'lissajous', layout:'grid', rows:2, cols:3, lines:2, echo:'phase', spread:.2, width:7, colorMode:'segments', dash:34, accent:.3, flow:.4, ...SCHEMES.Ember, pixel:.4, smear:.8, block:16, gain:3, glitch:.3, fade:.45, grain:.4, tooth:.5},
-  Loop:       {curve:'lissajous', a:2, b:1, lines:4, spread:.75, width:7, colorMode:'segments', dash:30, accent:.25, flow:.6, speed:.15, ...SCHEMES.Lilac},
+  Loop:       {curve:'lissajous', a:2, b:1, lines:4, spread:.75, width:7, colorMode:'segments', dash:30, accent:.25, flow:.6, speed:.15, ...SCHEMES.Tint},
   Signal:     {curve:'wave', a:2, b:3, mod:.25, speed:.45, lines:4, spread:1, width:7, colorMode:'segments', dash:36, accent:.22, flow:.5, ...SCHEMES.Signal},
   Vibrations: {aspect:'1000x1400', curve:'lissajous', layout:'grid', rows:8, cols:5, labels:true, width:3, speed:.25, ...SCHEMES.Card, grain:.25, tooth:.25},
-  Bloom:      {curve:'rose', a:5, b:3, lines:4, echo:'phase', spread:.3, width:4.5, colorMode:'gradient', dash:40, flow:.3, speed:.2, ...SCHEMES.Violet, pixel:.12, smear:.5, block:9},
+  Bloom:      {curve:'rose', a:5, b:3, lines:4, echo:'phase', spread:.3, width:4.5, colorMode:'gradient', dash:40, flow:.3, speed:.2, ...SCHEMES.Deep, pixel:.12, smear:.5, block:9},
   Pendulum:   {curve:'harmono', a:2, b:3, mod:.35, width:3, colorMode:'gradient', dash:60, flow:.2, speed:.12, ...SCHEMES.Ink, pixel:.25, smear:.6, gain:5, grain:.35, block:8, blockW:2.5},
   Gears:      {curve:'spiro', a:7, b:3, mod:.6, lines:3, spread:.45, width:5, colorMode:'lines', speed:.2, ...SCHEMES.Stone},
 };
@@ -508,9 +547,9 @@ for(const [title, items] of UI){
     } else if(it[0] === 'schemes'){
       const s = document.createElement('div'); s.className = 'seg';
       for(const name in SCHEMES){ const sch = SCHEMES[name]; const b = document.createElement('button');
-        b.innerHTML = `<span class="chips">${[sch.bg, ...sch.inks].map(k => `<i style="background:${SW[k]}"></i>`).join('')}</span>${name}`;
+        b.innerHTML = `<span class="chips">${[sch.bg, ...sch.inks].map(k => `<i data-k="${k}" style="background:${SW[k]}"></i>`).join('')}</span>${name}`;
         b.onclick = () => { state.bg = sch.bg; state.inks = [...sch.inks]; syncUI(); }; s.appendChild(b); }
-      g.appendChild(s);
+      refs.schemes = s; g.appendChild(s);
     } else if(it[0] === 'swatches'){
       const s = document.createElement('div'); s.className = 'swatches';
       for(const r in RAMPS) RAMPS[r].forEach((h, i) => {
@@ -579,6 +618,46 @@ function randomize(){
   ctx.clearRect(0,0,src.width,src.height); syncUI();
 }
 
+// ---------- school accent ----------
+// ?school=ucla picks a campus; ?accent=3b0764,0c4a6e builds both accents from their darkest values
+const schoolBox = document.getElementById('schools'), accInp = [0,1].map(i => document.getElementById('acc' + i));
+let school = 'NYU';
+function paintAccents(){
+  indexSwatches();
+  refs.swatches.querySelectorAll('.sw').forEach(b => {
+    const k = b.dataset.k; b.style.background = SW[k]; b.title = `${RAMP_NAMES[k[0]]} ${k.slice(1)} ${SW[k]}`;
+  });
+  refs.schemes.querySelectorAll('i[data-k]').forEach(i => i.style.background = SW[i.dataset.k]);
+  ACCENT_ROWS.forEach((r, i) => accInp[i].value = RAMPS[r][8].toLowerCase());
+  document.getElementById('lockup').textContent = school === 'Custom' ? 'Base44 × Campus' : `Base44 × ${school}`;
+  [...schoolBox.children].forEach(b => b.classList.toggle('on', b.dataset.v === school));
+  const q = new URLSearchParams(location.search); q.delete('school'); q.delete('accent');
+  if(school === 'Custom') q.set('accent', ACCENT_ROWS.map(r => RAMPS[r][8].slice(1).toLowerCase()).join(','));
+  else if(school !== 'NYU') q.set('school', school.toLowerCase());
+  history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : ''));
+  syncUI();
+}
+function setSchool(name){
+  school = name;
+  SCHOOLS[name].forEach((a, i) => { RAMPS[ACCENT_ROWS[i]] = accentRamp(a); RAMP_NAMES[ACCENT_ROWS[i]] = `${name} ${a.name}`; });
+  paintAccents();
+}
+// picking a darkest value regenerates that accent and leaves the other one as it is
+function setAccent(i, hex){
+  school = 'Custom';
+  if(hex) RAMPS[ACCENT_ROWS[i]] = rampFrom(hex);
+  ACCENT_ROWS.forEach((r, j) => RAMP_NAMES[r] = 'Accent ' + (j + 1));
+  paintAccents();
+}
+for(const name of [...Object.keys(SCHOOLS), 'Custom']){
+  const b = document.createElement('button'); b.dataset.v = name;
+  const chip = name === 'Custom' ? '' : `<span class="chips">${SCHOOLS[name].map(a => `<i style="background:${accentRamp(a)[4]}"></i>`).join('')}<i style="background:${RAMPS.O[5]}"></i></span>`;
+  b.innerHTML = chip + name;
+  b.onclick = () => name === 'Custom' ? setAccent(0) : setSchool(name);
+  schoolBox.appendChild(b);
+}
+accInp.forEach((inp, i) => inp.oninput = () => setAccent(i, inp.value));
+
 document.getElementById('aspect').onchange = () => setSize(1);
 document.getElementById('rand').onclick = randomize;
 const pauseBtn = document.getElementById('pause');
@@ -634,6 +713,10 @@ recBtn.onclick = () => {
 
 setSize();
 applyPreset('Loop');
+{ const q = new URLSearchParams(location.search), s = (q.get('school') || '').toUpperCase();
+  const a = (q.get('accent') || '').split(',').filter(h => /^[0-9a-f]{6}$/i.test(h));
+  setSchool(SCHOOLS[s] ? s : 'NYU');
+  a.slice(0, 2).forEach((h, i) => setAccent(i, '#' + h)); }
 requestAnimationFrame(loop);
 </script>
 </body>

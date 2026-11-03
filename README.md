@@ -9,6 +9,7 @@ Everything runs in a single `index.html`: Canvas 2D draws the curves, WebGL2 app
 - **Curves:** five families, each driven by two frequencies, a phase and a modulation amount; the phase drifts so shapes keep morphing.
 - **Chart grid:** rows step through frequency ratios (1:1 → 5:6), columns sweep the phase.
 - **Lines:** nested, phase-shifted or offset copies of each curve.
+- **School accents:** the first two palette rows are the school's two accents. Switch between NYU (purple, indigo), UCLA (blue, deep blue) and USC (cardinal, gold), or pick each accent's darkest value and the lighter steps are generated from it. Base44 orange and stone stay fixed. Link straight to a campus with `?school=ucla`, or to custom accents with `?accent=3b0764,0c4a6e`.
 - **Color:** a 36-swatch palette, seven preset color schemes, and solid / per-line / flowing-dash / gradient coloring.
 - **Weathering:** pixel blocks that ease in and out, a Line / Both / Blocks-only view, smear, temporal smoothing, grain, paper tooth, trails and stop-motion.
 - **Export:** PNG at up to 4× scale; video as WebM (VP9 or VP8) or MP4, up to 3840 px on the long side.
